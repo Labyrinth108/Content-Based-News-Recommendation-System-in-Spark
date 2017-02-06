@@ -1,6 +1,7 @@
 import pandas as pd
 import time
 import numpy as np
+from utils import *
 
 def changeToTimestamp(sep_time):
     time_struct = time.strptime(sep_time, "%Y-%m-%d %H:%M:%S")
@@ -27,12 +28,16 @@ if __name__ == '__main__':
     sep = '\t'
     names = ['user_id', 'news_id', 'read_time', 'news_title', 'news_content', 'news_publi_time']
     raw_data, training_data, testing_data = get_data(filename, sep, names=names)
+    training_data_news = training_data.drop_duplicates(['news_title'])
+    # test_user_id = set(list(testing_data['user_id'].values))
+    # tran_user_id = set(list(training_data['user_id'].values))
+    #
+    # new_user_test = test_user_id - tran_user_id
+    # old_user_test = test_user_id - new_user_test
+    # np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_user_all_id.npy', test_user_id)
+    # np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_old_user_id.npy', old_user_test)
+    # np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_new_user_id.npy', new_user_test)
 
-    test_user_id = set(list(testing_data['user_id'].values))
-    tran_user_id = set(list(training_data['user_id'].values))
-
-    new_user_test = test_user_id - tran_user_id
-    old_user_test = test_user_id - new_user_test
-    np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_user_all_id.npy', test_user_id)
-    np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_old_user_id.npy', old_user_test)
-    np.save('/Users/luoyi/Documents/Python/RecommendationSystem/data/test_new_user_id.npy', new_user_test)
+    news_train = [preprocess(training_data_news['news_title'].values[i] + "_"+ training_data_news['news_content'].values[i])
+                  for i in range(0,500)]
+    writeInFile(news_train, '/Users/luoyi/Documents/Python/RecommendationSystem/data/news.txt')
