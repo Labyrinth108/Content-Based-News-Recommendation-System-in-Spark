@@ -23,6 +23,19 @@ def get_data(filename, sep, names):
 
     return raw_data, training_data, testing_data
 
+def generateNewsTable(data, filename):
+
+    data_news = data.drop_duplicates(['news_title'])
+    length = len(data_news.index)
+    print("The length of news is " + str(length))
+    processes_news = [(data_news['news_id'].values[i],
+                   preprocess_WithSpeech(data_news['news_title'].values[i]
+                                         + "_" + data_news['news_content'].values[i]))
+                  for i in range(0, length)]
+
+    writeNewsInFile(processes_news, filename)
+
+
 if __name__ == '__main__':
     filename = '/Users/luoyi/Documents/Python/RecommendationSystem/data/user_click_data.txt'
     sep = '\t'
@@ -31,29 +44,21 @@ if __name__ == '__main__':
     # calculateNumber(training_data)
     # calculateNumber(testing_data)
 
-    # #Reading history
-    # #Generate user_id-news_id table
+    #Reading history
+    #Generate user_id-news_id table
     # length = len(training_data.index)
-    # uid_nid = [(training_data['user_id'].values[i], training_data['news_id'].values[i])
-    #            for i in range(0,length)]
-    #
+    # uid_nid = training_data.loc[:,['user_id','news_id']].values
     # writeTwoIndexesInFile(uid_nid, "/Users/luoyi/Documents/Python/RecommendationSystem/data/uid_nid.txt")
 
     #Divide users in test set into new_user and old_user with known reading history
-    test_user_id = set(list(testing_data['user_id'].values))
-    tran_user_id = set(list(training_data['user_id'].values))
-
-    new_user_test = test_user_id - tran_user_id
-    old_user_test = test_user_id - new_user_test
-    writeIntegerInFile(new_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_test.txt")
-    writeIntegerInFile(old_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_test.txt")
-
-    # #generate news_id-news_content table
-    # training_data_news = training_data.drop_duplicates(['news_title'])
-    # # calculateNumber(training_data_news)
-    # news_train = [(training_data_news['news_id'].values[i],
-    #                preprocess_WithSpeech(training_data_news['news_title'].values[i]
-    #                                      + "_"+ training_data_news['news_content'].values[i]))
-    #               for i in range(0,4284)]
+    # test_user_id = set(list(testing_data['user_id'].values))
+    # tran_user_id = set(list(training_data['user_id'].values))
     #
-    # writeNewsInFile(news_train, '/Users/luoyi/Documents/Python/RecommendationSystem/data/news_with_id.txt')
+    # new_user_test = test_user_id - tran_user_id
+    # old_user_test = test_user_id - new_user_test
+    # writeIntegerInFile(new_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_test.txt")
+    # writeIntegerInFile(old_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_test.txt")
+
+    # generate news_id-news_content table of training data
+    generateNewsTable(training_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/training_data.txt")
+    generateNewsTable(testing_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/testing_data.txt")
