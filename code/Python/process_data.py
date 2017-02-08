@@ -28,20 +28,32 @@ if __name__ == '__main__':
     sep = '\t'
     names = ['user_id', 'news_id', 'read_time', 'news_title', 'news_content', 'news_publi_time']
     raw_data, training_data, testing_data = get_data(filename, sep, names=names)
-
     # calculateNumber(training_data)
     # calculateNumber(testing_data)
 
-    training_data_news = training_data.drop_duplicates(['news_title'])
-
-    # calculateNumber(training_data_news)
-
-    # test_user_id = set(list(testing_data['user_id'].values))
-    # tran_user_id = set(list(training_data['user_id'].values))
+    # #Reading history
+    # #Generate user_id-news_id table
+    # length = len(training_data.index)
+    # uid_nid = [(training_data['user_id'].values[i], training_data['news_id'].values[i])
+    #            for i in range(0,length)]
     #
-    # new_user_test = test_user_id - tran_user_id
-    # old_user_test = test_user_id - new_user_test
+    # writeTwoIndexesInFile(uid_nid, "/Users/luoyi/Documents/Python/RecommendationSystem/data/uid_nid.txt")
 
-    news_train = [preprocess_WithSpeech(training_data_news['news_title'].values[i] + "_"+ training_data_news['news_content'].values[i])
-                  for i in range(0,4284)]
-    writeInFile(news_train, '/Users/luoyi/Documents/Python/RecommendationSystem/data/news.txt')
+    #Divide users in test set into new_user and old_user with known reading history
+    test_user_id = set(list(testing_data['user_id'].values))
+    tran_user_id = set(list(training_data['user_id'].values))
+
+    new_user_test = test_user_id - tran_user_id
+    old_user_test = test_user_id - new_user_test
+    writeIntegerInFile(new_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_test.txt")
+    writeIntegerInFile(old_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_test.txt")
+
+    # #generate news_id-news_content table
+    # training_data_news = training_data.drop_duplicates(['news_title'])
+    # # calculateNumber(training_data_news)
+    # news_train = [(training_data_news['news_id'].values[i],
+    #                preprocess_WithSpeech(training_data_news['news_title'].values[i]
+    #                                      + "_"+ training_data_news['news_content'].values[i]))
+    #               for i in range(0,4284)]
+    #
+    # writeNewsInFile(news_train, '/Users/luoyi/Documents/Python/RecommendationSystem/data/news_with_id.txt')

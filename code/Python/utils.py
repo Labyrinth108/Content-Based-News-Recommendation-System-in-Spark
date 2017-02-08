@@ -15,6 +15,33 @@ def writeInFile(content, filename):
             print(news)
     file.close()
 
+def writeIntegerInFile(content, filename):
+    file = open(filename, 'w')
+    for news in content:
+        try:
+            file.write(str(news) + "\n")
+        except Exception as e:
+            print(news)
+    file.close()
+
+def writeNewsInFile(content, filename):
+    file = io.open(filename, 'w', encoding="utf-8")
+    for news in content:
+        try:
+            file.write(str(news[0]) + "," + news[1] + "\n")
+        except Exception as e:
+            print(news)
+    file.close()
+
+def writeTwoIndexesInFile(content, filename):
+    file = open(filename, 'w')
+    for index in content:
+        try:
+            file.write(str(index[0]) + "," + str(index[1]) + "\n")
+        except Exception as e:
+            print(index)
+    file.close()
+
 def hasNumbersAlphas(inputString):
     if re.search("\w", inputString):
         return True
