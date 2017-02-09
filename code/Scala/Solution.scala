@@ -21,6 +21,7 @@ import org.apache.log4j.{ Level, Logger }
 object Solution {
   
   def parse_News(srcRDD: org.apache.spark.rdd.RDD[(String, String)], sc: SparkContext):org.apache.spark.sql.DataFrame ={
+    
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     import sqlContext.implicits._
     
@@ -37,6 +38,7 @@ object Solution {
     
     return filtered_df
   }
+  
   
   def LDA_stuff(sourcefile: String, sc: SparkContext):org.apache.spark.rdd.RDD[(String, Vector)]={
 
@@ -58,9 +60,9 @@ object Solution {
     //Convert DF to RDD
     val lda_countvector = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
       
-//    val computeLDAModel = false
-//    
-//    if (computeLDAModel) {
+    val computeLDAModel = false
+    
+    if (computeLDAModel) {
       
       //LDA begins
       val numTopics = 5
@@ -93,8 +95,10 @@ object Solution {
       }
 
       ldaModel.save(sc, s"file:///home/laura/Documents/LDA_K$numTopics")
-//    }
- 
+    }
+    
+    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_K5")
+    
     //compute topic distributions of news in the training data
     //topicProb : (useless normal_news_index from 1 to n, topic representation of news)
     val topicProb = localmodel.topicDistributions(lda_countvector)
@@ -107,6 +111,7 @@ object Solution {
     return nid_representation
   }
 
+  
   def process_test_news(sourcefile: String, sc: SparkContext):org.apache.spark.rdd.RDD[(String, Vector)]={
     
     var srcRDD = sc.textFile(sourcefile).map { x =>
@@ -133,8 +138,26 @@ object Solution {
     
     //nid_representation : (nid, topic representation of news)
     val nid_representation = news_index.zip(representaion)
+    
     return nid_representation
   }
+  
+  
+  def cosineSimilarity(v1: Vector, v2:Vector)={
+    
+    var result = 0.0
+    var norm1 = 0.0
+    var norm2 = 0.0
+    var index = v1.size - 1
+    
+    for(i<-0 to index){
+      result += v1(i) * v2(i)
+      norm1 += Math.pow(v1(i), 2)
+      norm2 += Math.pow(v2(i), 2)
+    }  
+   result/(Math.sqrt(norm1)*Math.sqrt(norm2))
+  }
+  
   
   def main(args: Array[String]) {
 
@@ -172,14 +195,48 @@ object Solution {
       (f._1, Vectors.dense((v :/ num_v).toArray))
     })
 
-    user_representation.saveAsObjectFile("/home/laura/Documents/user_representation")
+//    user_representation.saveAsObjectFile("/home/laura/Documents/user_representation")
 
     //Recommend news to users
-    val old_user_id = sc.textFile("/home/laura/Documents/old_user_test.txt")  
-    //    user_representation.filter(x=> x._1 )
-    
     val test_lda_vector = process_test_news("/home/laura/Documents/testing_data.txt", sc)
-    test_lda_vector.saveAsTextFile("/home/laura/Documents/test_news_representation")
+    //    test_lda_vector.saveAsTextFile("/home/laura/Documents/test_news_representation")
+    
+    //extract the representation of old users from all users 
+    val old_user_id = sc.textFile("/home/laura/Documents/old_user_test.txt")  
+    val old_user_id_bc = sc.broadcast(old_user_id.collect.toSet)
+    val old_user_representation = user_representation.filter{case(uid, representation) => old_user_id_bc.value.contains(uid) }
+//    old_user_representation.saveAsTextFile("/home/laura/Documents/old_user_representation")   
+    
+    //(user, (n_id, similarity))
+   val user_recommend = old_user_representation.map(x=>{
+     val user_vector = x._2
+     val u_n_sim = test_lda_vector.map(x => (x._1, cosineSimilarity(user_vector, x._2)))  
+     (x._1, u_n_sim)
+   })
+    
+    user_recommend.saveAsTextFile("/home/laura/Documents/testla")
+
+//    val user_recommend = old_user_representation.map(x=>{
+//    val user_vector = x._2
+//    val n_vectors = test_lda_vector.values
+//    for(i<- n_vectors){
+//      val u_n_sim = cosineSimilarity(user_vector, i)
+//    }
+//    val u_n_sim = test_lda_vector.map(x => (x._1, cosineSimilarity(user_vector, x._2)))  
+//      (x._1, u_n_sim)
+//    })
+    
+     //(uid, (nid, u_n_sim))
+//    val user_top5_n = user_recommend.map(x => {
+//        (x._1, x._2.takeOrdered(5))
+////      val u_n_sim = x._2
+////      u_n_sim.sortBy(_._2, false) //descending sort values
+//    }) 
+//    
+//    user_top5_n.saveAsTextFile("/home/laura/Documents/user_top5news.txt")
+//    val user_top5_n_id = user_top5_n.map(x=>{
+//      val n_id = x._2
+//    })
     
   }
 }
