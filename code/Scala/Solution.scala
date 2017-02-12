@@ -64,7 +64,7 @@ object Solution {
     if (computeLDAModel) {
 
       //LDA begins
-      val numTopics = 5
+      val numTopics = 8
 
       val lda = new LDA().setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
         .setK(numTopics).setMaxIterations(60).setDocConcentration(-1).setTopicConcentration(-1)
@@ -93,10 +93,10 @@ object Solution {
           println(s"=====================")
       }
 
-      ldaModel.save(sc, s"file:///home/laura/Documents/LDA_K$numTopics")
+      ldaModel.save(sc, s"file:///home/laura/Documents/LDA_Model/LDA_K$numTopics")
     }
 
-    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_K5")
+    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_Model/LDA_K8")
 
     //compute topic distributions of news in the training data
     //topicProb : (useless normal_news_index from 1 to n, topic representation of news)
@@ -110,12 +110,13 @@ object Solution {
     return nid_representation
   }
 
-  def process_test_news(sourcefile: String, sc: SparkContext): org.apache.spark.rdd.RDD[(String, Vector)] = {
+  def process_test_news(sourcefile: String, sc: SparkContext, modelfile: String): org.apache.spark.rdd.RDD[(String, Vector)] = {
 
     var srcRDD = sc.textFile(sourcefile).map { x =>
       val data = x.split(",")
       (data(0), data(1))
-    }
+    }.cache()
+
     var news_index = srcRDD.map { x => x._1 }
 
     //preprocess(remove the stop words) in the test dataset
@@ -129,7 +130,7 @@ object Solution {
     //Convert DF to RDD
     val lda_countvector = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
 
-    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_K5")
+    val localmodel = LocalLDAModel.load(sc, modelfile)
 
     val topicProb = localmodel.topicDistributions(lda_countvector)
     val representaion = topicProb.map(x => x._2)
@@ -178,23 +179,23 @@ object Solution {
     //compute user preference vector: (uid, preference vector)
     //compute the average of the representation of reading news as the preference vector
     val user_representation = user_vector.groupByKey().map(f => {
-      var avg = Vectors.dense(0, 0, 0, 0, 0)
-      var num = 1
+      var avg = Vectors.zeros(8)
+      var num = f._2.toArray.length
       for (i <- f._2) {
         val v1 = new DenseVector(i.toArray)
         val v2 = new DenseVector(avg.toArray)
         avg = Vectors.dense((v1 + v2).toArray)
-        num = num + 1
       }
       val v = new DenseVector(avg.toArray)
-      val num_v = new DenseVector(Vectors.dense(num, num, num, num, num).toArray)
+      val num_list = List.fill(8)(num * 1.0)
+      val num_v = new DenseVector(num_list.toVector.toArray)     
       (f._1, Vectors.dense((v :/ num_v).toArray))
     })
 
-    //    user_representation.saveAsObjectFile("/home/laura/Documents/user_representation")
-
     //Recommend news to users
-    val test_lda_vector = process_test_news("/home/laura/Documents/testing_data.txt", sc)
+    val modelfile = "/home/laura/Documents/LDA_Model/LDA_K8"
+    val test_lda_vector = process_test_news("/home/laura/Documents/testing_data.txt", sc, modelfile).cache()
+    
     //    test_lda_vector.saveAsTextFile("/home/laura/Documents/test_news_representation")
 
     //extract the representation of old users from all users 
@@ -215,22 +216,45 @@ object Solution {
     //a way to compute cosine similarity between item vectors and user_preference but it costs too much.
     //a simple implementation waiting for improvements such as clustering news
 
-    val test_lda_vector_sample = sc.parallelize(test_lda_vector.take(1000))
-    val sim_result = old_user_representation.cartesian(test_lda_vector_sample).map { case ((uid, u_vector), (nid, n_vector)) => (uid, (nid, cosineSimilarity(u_vector, n_vector))) }
+//    val test_lda_vector_sample = sc.parallelize(test_lda_vector.take(10000))
+    val sim_result = old_user_representation.cartesian(test_lda_vector).map { 
+      case ((uid, u_vector), (nid, n_vector)) => (uid, (nid, cosineSimilarity(u_vector, n_vector))) }
     //    sim_result.saveAsTextFile("/home/laura/Documents/testla")
 
-    //(uid, Iterable(nid, n_sim))
+    //(uid, List(nid, n_sim))
+    val topK = 20
     val recommend_news = sim_result.groupByKey().map {
       case (uid, nid_sim) =>
-        (uid, nid_sim.toList.sortWith(_._2 > _._2).take(10).toIterable)
+        (uid, nid_sim.toList.sortWith(_._2 > _._2).take(topK))
     }
-    //    recommend_news.saveAsTextFile("/home/laura/Documents/recommend_news.txt")
+    
 
-    //(uid, nid)
+    val recommend_news_flatten = recommend_news.flatMap({case (uid, n_set) => n_set.map(uid-> _._1)})
+    val recommend_news_id = recommend_news_flatten.groupByKey()
+    
+//    recommend_news_flatten.saveAsTextFile("/home/laura/Documents/recommend_news_flatten_2")
+    
+    //(uid, Iterable[nid])
     val test_news_labels = sc.textFile("/home/laura/Documents/old_user_records.txt").map { x =>
       var data = x.split(",")
       (data(0), data(1))
-    }
+    }.groupByKey()
+    
 
+    val recommend_result = recommend_news_id.join(test_news_labels).map{case (uid, (pred, labels))=> 
+      val labels_ = labels.toArray
+      val pred_ = pred.toArray
+      val tp = pred_.intersect(labels_).length
+      val min_v = Math.min(topK, labels_.length)
+      var correct = 0
+      
+      if( tp > min_v / 2)
+         correct = 1
+      
+      (uid, correct)
+    }
+    
+    val results = recommend_result.values.sum()
+    println(results)
   }
 }
