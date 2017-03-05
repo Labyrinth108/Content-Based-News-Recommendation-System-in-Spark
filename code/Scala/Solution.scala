@@ -164,9 +164,11 @@ object Solution {
     val conf = new SparkConf().setMaster("local").setAppName("LDA")
     val sc = new SparkContext(conf)
 
+    //========Compute News representation===================================
     //nid_representation : (nid, topic representation of news)
     val nid_representation = LDA_stuff("/home/laura/Documents/training_data.txt", sc)
 
+    //=========Compute User profile========================================
     //reading record in the training data: (nid,uid)
     val reading_record = sc.textFile("/home/laura/Documents/uid_nid.txt").map { x =>
       var data = x.split(",")
@@ -192,6 +194,7 @@ object Solution {
       (f._1, Vectors.dense((v :/ num_v).toArray))
     })
 
+    //=============Recommendation===========================================
     //Recommend news to users
     val modelfile = "/home/laura/Documents/LDA_Model/LDA_K8"
     val test_lda_vector = process_test_news("/home/laura/Documents/testing_data.txt", sc, modelfile).cache()

@@ -64,7 +64,9 @@ def preprocess(news):
 
 def hasMeaningfulWords(x):
     flag = x.flag
-    target_set = ['n', 'ns', 'ni','nh','nt', 'nz','a','ad','an','d','v','vd','vn','vi','vl']
+    target_set = ['n','nt', 'nz', # nt--机构团体名, nz=其他专有名
+                  'a','ad','an','d',
+                  'v','vd','vn','vi','vl']
 
     if flag in target_set:
         return True

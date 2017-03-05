@@ -50,33 +50,33 @@ if __name__ == '__main__':
     # calculateNumber(training_data)
     # calculateNumber(testing_data)
 
-    #Reading history
+    # Reading history
     # generateReadingRecord(training_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/training_uid_nid.txt")
     # generateReadingRecord(testing_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/testing_uid_nid.txt")
 
-    #Divide users in test set into new_user and old_user with known reading history
-    test_user_id = set(list(testing_data['user_id'].values))
-    tran_user_id = set(list(training_data['user_id'].values))
-
-    new_user_test = test_user_id - tran_user_id
-    old_user_test = test_user_id - new_user_test
-
-    uid_nid = testing_data.loc[:,['user_id','news_id']].values
-
-    old_user_file = open("/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_records.txt", "w")
-    new_user_file = open("/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_records.txt", "w")
-
-    for (uid, nid) in uid_nid:
-        if uid in old_user_test:
-            old_user_file.write(str(uid) + "," + str(nid) + "\n")
-        else:
-            new_user_file.write(str(uid) + "," + str(nid) + "\n")
-    old_user_file.close()
-    new_user_file.close()
+    # #Divide users in test set into new_user and old_user with known reading history
+    # test_user_id = set(list(testing_data['user_id'].values))
+    # tran_user_id = set(list(training_data['user_id'].values))
+    #
+    # new_user_test = test_user_id - tran_user_id
+    # old_user_test = test_user_id - new_user_test
+    #
+    # uid_nid = testing_data.loc[:,['user_id','news_id']].values
+    #
+    # old_user_file = open("/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_records.txt", "w")
+    # new_user_file = open("/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_records.txt", "w")
+    #
+    # for (uid, nid) in uid_nid:
+    #     if uid in old_user_test:
+    #         old_user_file.write(str(uid) + "," + str(nid) + "\n")
+    #     else:
+    #         new_user_file.write(str(uid) + "," + str(nid) + "\n")
+    # old_user_file.close()
+    # new_user_file.close()
 
     # writeIntegerInFile(new_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/new_user_test.txt")
     # writeIntegerInFile(old_user_test, "/Users/luoyi/Documents/Python/RecommendationSystem/data/old_user_test.txt")
 
     # generate news_id-news_content table of training data
-    # generateNewsTable(training_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/training_data.txt")
+    generateNewsTable(training_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/1training_data.txt")
     # generateNewsTable(testing_data, "/Users/luoyi/Documents/Python/RecommendationSystem/data/testing_data.txt")
