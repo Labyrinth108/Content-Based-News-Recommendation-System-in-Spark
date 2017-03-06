@@ -1,1 +1,1 @@
-# Content-Based News Recommendation System in Spark platform
+# Content-Based News Recommendation System in Spark
