@@ -19,37 +19,42 @@ import org.apache.spark.ml.feature.StopWordsRemover
 import org.apache.log4j.{ Level, Logger }
 
 object Solution {
-
-  def parse_News(srcRDD: org.apache.spark.rdd.RDD[(String, String)], sc: SparkContext): org.apache.spark.sql.DataFrame = {
+  val dir = "/home/laura/Documents/"
+  val news_training_file = dir + "data/training_data.txt"
+  val news_testing_file = dir + "data/testing_data.txt"
+  val record_training_file = dir + "data/training_uid_nid.txt"
+  val record_testing_file = dir + "data/test_old_user_records.txt"
+  val olduser_id_test_file = "/home/laura/Documents/data/test_old_user_id.txt"
+  val stopwords_file = dir + "News_Stopwords.txt"
+  
+  val numTopics = 4
+  val model_file = dir + s"LDA_Model/LDA_K$numTopics"
+  
+  def parse_News(corpus_rdd: org.apache.spark.rdd.RDD[ String], sc: SparkContext): org.apache.spark.sql.DataFrame = {
 
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     import sqlContext.implicits._
 
-    var corpus_rdd = srcRDD.map { x => x._2 }
     val corpus_df = corpus_rdd.zipWithIndex.toDF("corpus", "id")
 
     //tokenize and remove stop words
-    var tokenizer = new Tokenizer().setInputCol("corpus").setOutputCol("words")
-    var wordsData = tokenizer.transform(corpus_df)
+    val tokenizer = new Tokenizer().setInputCol("corpus").setOutputCol("words")
+    val wordsData = tokenizer.transform(corpus_df)
 
-    val stopwords = sc.textFile("/home/laura/Documents/News_Stopwords.txt").collect()
+    val stopwords = sc.textFile(stopwords_file).collect()
     val remover = new StopWordsRemover().setStopWords(stopwords).setInputCol("words").setOutputCol("filtered")
     val filtered_df = remover.transform(wordsData)
 
     return filtered_df
   }
 
-  def LDA_stuff(sourcefile: String, sc: SparkContext): org.apache.spark.rdd.RDD[(String, Vector)] = {
+  def LDA_stuff(srcRDD: org.apache.spark.rdd.RDD[(String,  String)], sc: SparkContext): org.apache.spark.rdd.RDD[(String, Vector)] = {
 
-    // (u_id, news)
-    var srcRDD = sc.textFile(sourcefile).map { x =>
-      val data = x.split(",")
-      (data(0), data(1))
-    }
-    var news_index = srcRDD.map { x => x._1 }
-
+    val news_index = srcRDD.map { x => x._1 }
+    val corpus_rdd = srcRDD.map { x => x._2 }
+    
     //preprocess(remove the stop words) in the training dataset
-    val filtered_df = parse_News(srcRDD, sc)
+    val filtered_df = parse_News(corpus_rdd, sc)
 
     // Set parameters for CountVectorizer
     val vectorizer = new CountVectorizer().setInputCol("filtered").setOutputCol("features").setVocabSize(10000).setMinDF(5).fit(filtered_df)
@@ -57,24 +62,24 @@ object Solution {
     val countVectors = vectorizer.transform(filtered_df).select("id", "features")
 
     //Convert DF to RDD
-    val lda_countvector = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
+    val countvector_rdd = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
 
     val computeLDAModel = false
-
+    var localmodel: org.apache.spark.mllib.clustering.LocalLDAModel = null
+    
     if (computeLDAModel) {
 
       //LDA begins
-      val numTopics = 8
 
       val lda = new LDA().setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
         .setK(numTopics).setMaxIterations(60).setDocConcentration(-1).setTopicConcentration(-1)
 
-      val ldaModel = lda.run(lda_countvector)
+      val ldaModel = lda.run(countvector_rdd)
 
       //evaluate the model
-      val localmodel = ldaModel.asInstanceOf[LocalLDAModel]
-      val ll = localmodel.logLikelihood(lda_countvector)
-      val lp = localmodel.logPerplexity(lda_countvector)
+      localmodel = ldaModel.asInstanceOf[LocalLDAModel]
+      val ll = localmodel.logLikelihood(countvector_rdd)
+      val lp = localmodel.logPerplexity(countvector_rdd)
       println(s"The lower bound on the log likelihood of the entire corpus: $ll")
       println(s"The upper bound on perplexity: $lp")
 
@@ -92,15 +97,17 @@ object Solution {
           topic.foreach { case (term, weight) => println(s"$term\t$weight") }
           println(s"=====================")
       }
-
-      ldaModel.save(sc, s"file:///home/laura/Documents/LDA_Model/LDA_K$numTopics")
+      
+      ldaModel.save(sc, model_file)
     }
-
-    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_Model/LDA_K8")
-
+    else{
+      
+      localmodel = LocalLDAModel.load(sc, model_file)
+    }
+    
     //compute topic distributions of news in the training data
     //topicProb : (useless normal_news_index from 1 to n, topic representation of news)
-    val topicProb = localmodel.topicDistributions(lda_countvector)
+    val topicProb = localmodel.topicDistributions(countvector_rdd)
     val representaion = topicProb.map(x => x._2)
     //    topicProb.saveAsTextFile(s"file:///home/laura/Documents/topicDistributions_K$numTopics")
 
@@ -110,17 +117,14 @@ object Solution {
     return nid_representation
   }
 
-  def process_test_news(sourcefile: String, sc: SparkContext, modelfile: String): org.apache.spark.rdd.RDD[(String, Vector)] = {
+  def process_test_news(srcRDD: org.apache.spark.rdd.RDD[(String,  String, String)], sc: SparkContext): org.apache.spark.rdd.RDD[(String,( Vector, String))] = {
 
-    var srcRDD = sc.textFile(sourcefile).map { x =>
-      val data = x.split(",")
-      (data(0), data(1))
-    }.cache()
+    val news_index = srcRDD.map { x => x._1 }
+    val corpus_rdd = srcRDD.map { x => x._2 }
+    val news_pub_time = srcRDD.map{ x => x._3 }
 
-    var news_index = srcRDD.map { x => x._1 }
-
-    //preprocess(remove the stop words) in the test dataset
-    val filtered_df = parse_News(srcRDD, sc)
+    // preprocess (remove the stop words) in the test data set
+    val filtered_df = parse_News(corpus_rdd, sc)
 
     // Set parameters for CountVectorizer
     val vectorizer = new CountVectorizer().setInputCol("filtered").setOutputCol("features").setVocabSize(10000).setMinDF(5).fit(filtered_df)
@@ -128,15 +132,15 @@ object Solution {
     val countVectors = vectorizer.transform(filtered_df).select("id", "features")
 
     //Convert DF to RDD
-    val lda_countvector = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
+    val countvector_rdd = countVectors.map { case Row(id: Long, countVector: Vector) => (id, countVector) }
 
-    val localmodel = LocalLDAModel.load(sc, modelfile)
+    val localmodel = LocalLDAModel.load(sc, model_file)
 
-    val topicProb = localmodel.topicDistributions(lda_countvector)
+    val topicProb = localmodel.topicDistributions(countvector_rdd)
     val representaion = topicProb.map(x => x._2)
 
     //nid_representation : (nid, topic representation of news)
-    val nid_representation = news_index.zip(representaion)
+    val nid_representation = news_index.zip(representaion.zip(news_pub_time))
 
     return nid_representation
   }
@@ -164,100 +168,117 @@ object Solution {
     val conf = new SparkConf().setMaster("local").setAppName("LDA")
     val sc = new SparkContext(conf)
 
-    //========Compute News representation===================================
+    // News data set : (n_id, news, pub_time), but srcRDD(nid, news_content)
+    val srcRDD = sc.textFile(news_training_file).map { x =>
+      val data = x.split(",")
+      (data(0), data(1))
+    }.cache()
+    
     //nid_representation : (nid, topic representation of news)
-    val nid_representation = LDA_stuff("/home/laura/Documents/training_data.txt", sc)
+    val nid_representation = LDA_stuff(srcRDD, sc)
 
-    //=========Compute User profile========================================
-    //reading record in the training data: (nid,uid)
-    val reading_record = sc.textFile("/home/laura/Documents/uid_nid.txt").map { x =>
-      var data = x.split(",")
-      (data(1), data(0))
+    //reading records in the training data: (nid,uid, read_time)
+    val record_rdd = sc.textFile(record_training_file).map { x =>
+      val data = x.split(",")
+      (data(1), data(0), data(2))
     }
-
+    
+    //read_record: (nid, uid)
+    val reading_record = record_rdd.map{case (x,y,z) => (x,y)}
     //user_vector : (uid, representation of a piece of news)
     val user_vector = reading_record.join(nid_representation).map(x => x._2)
 
     //compute user preference vector: (uid, preference vector)
     //compute the average of the representation of reading news as the preference vector
-    val user_representation = user_vector.groupByKey().map(f => {
-      var avg = Vectors.zeros(8)
-      var num = f._2.toArray.length
-      for (i <- f._2) {
+    val user_representation = user_vector.groupByKey().map{case (uid, vectors) => {
+      var sum_v = Vectors.zeros(numTopics)
+      var num = vectors.toArray.length
+      
+      //compute sum of vectors
+      for (i <- vectors) {
         val v1 = new DenseVector(i.toArray)
-        val v2 = new DenseVector(avg.toArray)
-        avg = Vectors.dense((v1 + v2).toArray)
+        val v2 = new DenseVector(sum_v.toArray)
+        sum_v = Vectors.dense((v1 + v2).toArray)
       }
-      val v = new DenseVector(avg.toArray)
-      val num_list = List.fill(8)(num * 1.0)
-      val num_v = new DenseVector(num_list.toVector.toArray)     
-      (f._1, Vectors.dense((v :/ num_v).toArray))
-    })
+      
+      val sum_dv = new DenseVector(sum_v.toArray)
+      
+      val num_v = List.fill(numTopics)(num * 1.0).toVector
+      val num_dv = new DenseVector(num_v.toArray)     
+      
+      (uid, Vectors.dense((sum_dv :/ num_dv).toArray))
+    }}
 
-    //=============Recommendation===========================================
     //Recommend news to users
-    val modelfile = "/home/laura/Documents/LDA_Model/LDA_K8"
-    val test_lda_vector = process_test_news("/home/laura/Documents/testing_data.txt", sc, modelfile).cache()
-    
+    val test_rdd = sc.textFile(news_testing_file).map { x =>
+      val data = x.split(",")
+      (data(0), data(1), data(2))
+    }.cache()
+
+    //<nid, <vector, pub_time>>
+    val test_lda_vector = process_test_news(test_rdd, sc).cache()
     //    test_lda_vector.saveAsTextFile("/home/laura/Documents/test_news_representation")
 
     //extract the representation of old users from all users 
-    val old_user_id = sc.textFile("/home/laura/Documents/old_user_test.txt")
+    val old_user_id = sc.textFile(olduser_id_test_file)
     val old_user_id_bc = sc.broadcast(old_user_id.collect.toSet)
     val old_user_representation = user_representation.filter { case (uid, representation) => old_user_id_bc.value.contains(uid) }
-    //    old_user_representation.saveAsTextFile("/home/laura/Documents/old_user_representation")   
-
-    //(user, (n_id, similarity))
-    //Wrong implementation which causes an error 
-    //named "RDD transformation and actions can only be invoked by the driver, not inside of other transformation"
-    //    val user_recommend = old_user_representation.map(x=>{
-    //      val user_vector = x._2
-    //      val u_n_sim = test_lda_vector.map(x => (x._1, cosineSimilarity(user_vector, x._2)))  
-    //      (x._1, u_n_sim)
-    //    })
-
-    //a way to compute cosine similarity between item vectors and user_preference but it costs too much.
-    //a simple implementation waiting for improvements such as clustering news
-
-//    val test_lda_vector_sample = sc.parallelize(test_lda_vector.take(10000))
-    val sim_result = old_user_representation.cartesian(test_lda_vector).map { 
-      case ((uid, u_vector), (nid, n_vector)) => (uid, (nid, cosineSimilarity(u_vector, n_vector))) }
-    //    sim_result.saveAsTextFile("/home/laura/Documents/testla")
-
-    //(uid, List(nid, n_sim))
-    val topK = 20
-    val recommend_news = sim_result.groupByKey().map {
-      case (uid, nid_sim) =>
-        (uid, nid_sim.toList.sortWith(_._2 > _._2).take(topK))
+    // old_user_representation.saveAsTextFile("/home/laura/Documents/old_user_representation")   
+   
+    //(uid, nid, read_time)
+    val test_news_rdd = sc.textFile(record_testing_file).map { x =>
+      val data = x.split(",")
+      (data(0), data(1), data(2))
     }
     
-
-    val recommend_news_flatten = recommend_news.flatMap({case (uid, n_set) => n_set.map(uid-> _._1)})
-    val recommend_news_id = recommend_news_flatten.groupByKey()
+    val test_news_labels = test_news_rdd.map{case (x,y,z) => ((x,z),y)} //(uid, (read_time, nid))
+    val test_uid_time = test_news_rdd.map{x => (x._1, x._3)}  //(uid, read_time)
     
-//    recommend_news_flatten.saveAsTextFile("/home/laura/Documents/recommend_news_flatten_2")
+    //compute score of every news according to the user's feature vector and read_time
+    val scorerdd = test_uid_time.join(old_user_representation).cartesian(test_lda_vector).filter{case(x,y)=> x._2._1 > y._2._2} //filter and remain the news which published before the time user reads
+    .map{
+      case( (uid, (r_time, u_vector)), (nid, (n_vector, pub_time))) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
+      => 
+        val content_sim = cosineSimilarity(u_vector, n_vector)
+        val hours_passed = ( r_time.toFloat- pub_time.toFloat) / 3600
+        val day_passed = hours_passed / 24
+        var score = 0.0
+        val norm = 24 * 5
+        var time_diff = norm.toFloat
+        
+        if (day_passed < 5){
+          time_diff = hours_passed / norm
+          score =  content_sim - time_diff
+        }
+         ((uid, r_time), (nid,  score))
+         
+    }.filter{case ((uid, r_time), (nid,  score)) => score > 0}
     
-    //(uid, Iterable[nid])
-    val test_news_labels = sc.textFile("/home/laura/Documents/old_user_records.txt").map { x =>
-      var data = x.split(",")
-      (data(0), data(1))
-    }.groupByKey()
+//    scorerdd.saveAsTextFile("/home/laura/Documents/Testcosine")
     
-
-    val recommend_result = recommend_news_id.join(test_news_labels).map{case (uid, (pred, labels))=> 
-      val labels_ = labels.toArray
+    val topK = 10
+    //sort to get the recommended news
+    val recommend_news_id = scorerdd.groupByKey().map{ case ((uid, rtime), candidates) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
+      =>
+      ((uid,rtime), candidates.toList.sortWith(_._2 > _._2).take(topK))
+    }
+//    recommend_news_id.saveAsTextFile("/home/laura/Documents/recommend")
+    
+    //evaluate the recommendation according to the labels
+    val recommend_evaluation = recommend_news_id.join(test_news_labels).map{case ((uid,rtime), (pred, label))=> 
       val pred_ = pred.toArray
-      val tp = pred_.intersect(labels_).length
-      val min_v = Math.min(topK, labels_.length)
       var correct = 0
       
-      if( tp > min_v / 2)
-         correct = 1
-      
-      (uid, correct)
+      for (pair <- pred){
+        if(pair._1 == label)
+          correct = 1
+      }
+      ((uid, rtime), correct)
     }
-    
-    val results = recommend_result.values.sum()
+    val num = recommend_evaluation.count()
+    val results = recommend_evaluation.values.sum()
     println(results)
+    println(num)
   }
+  
 }
