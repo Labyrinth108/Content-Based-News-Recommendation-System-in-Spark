@@ -184,6 +184,17 @@ object Solution {
     return String.valueOf(sdf_new.parse(neardate).getTime / 1000 - 24 * 3600)
   }
   
+    def getNextDayTimestamp(ts: String): String ={
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val date = sdf.format(new Date(ts.toLong * 1000))
+    
+    val neardate = date.split(" ")(0) 
+    val sdf_new = new SimpleDateFormat("yyyy-MM-dd")
+    
+    return String.valueOf(sdf_new.parse(neardate).getTime / 1000 + 24 * 3600)
+  }
+  
+    
   def main(args: Array[String]) {
 
     Logger.getLogger("org.apache.spark").setLevel(Level.INFO)
@@ -249,24 +260,34 @@ object Solution {
     val old_user_representation = user_representation.filter { case (uid, representation) => old_user_id_bc.value.contains(uid) }
     // old_user_representation.saveAsTextFile("/home/laura/Documents/old_user_representation")   
    
-    //(uid, nid, read_time)
+    //((uid, nid, read_time), id)
     val test_news_rdd = sc.textFile(record_testing_file).map { x =>
       val data = x.split(",")
       (data(0), data(1), data(2))
-    }
+    }.zipWithIndex()
     
-    val test_news_labels = test_news_rdd.map{case (x,y,z) => ((x,z),y)} //(uid, (read_time, nid))
-    val test_uid_time = test_news_rdd.map{x => (x._1, x._3)}  //(uid, read_time)
+    val test_news_labels = test_news_rdd.map{case ((x,y,z), id) => (id, ((x,z),y))} //(uid, (read_time, nid))
+    val test_uid_time = test_news_rdd.map{x => (x._2, (x._1._1, x._1._3))}  //(id, (uid, read_time))
     
     //(read_time, Array(nid, num))
-    val hot_news_rdd = test_news_rdd.map{x => (getNearDayTimestamp(x._3), x._2)}.map(x => (x._1, (x._2, 1))).groupByKey().map{ case (time, news)
+    val hot_news_rdd = test_news_rdd.map{x => (getNearDayTimestamp(x._1._3), x._1._2)}.map(x => (x._1, (x._2, 1.0))).groupByKey().map{ case (time, news)
       =>
-        val news_count = news.groupBy(_._1).map{case (x,y) => y.reduce((a,b) =>(a._1, a._2 + b._2))}.toList.sortWith(_._2 > _._2).take(10)
+        val news_count = news.groupBy(_._1).map{case (x,y) => y.reduce((a,b) =>(a._1, a._2 + b._2))}.toList.sortWith(_._2 > _._2).take(3)
         (time, news_count)
     }
    
 //    hot_news_rdd.saveAsTextFile(dir + "hot_news")
-    val hot_news_evaluation = test_news_rdd.map(x => (getPreviousDayTimestamp(x._3), (x._1, x._2))).leftOuterJoin(hot_news_rdd).map{
+    val hot_news_evaluation = test_news_rdd.map(x => (getPreviousDayTimestamp(x._1._3), (x._2, x._1._1, x._1._2))).leftOuterJoin(hot_news_rdd)
+    .map{
+      case( prev_read_time, ((id, uid, nid), pred))=>
+        
+        (id, (nid, pred))
+    }
+    
+    val hot_news_recommend = test_uid_time.join(hot_news_evaluation).map{
+      case (id, ((uid, read_time),(nid, pred))) => ((uid, read_time), (nid, pred))
+    }
+    /*.map{
       case( read_time, ((uid, nid), Some(pred)))=>
         var correct = 0
         
@@ -278,58 +299,69 @@ object Solution {
         
       case( read_time, ((uid, nid), None)) =>
          ((uid, read_time), 0)
-    }
+    }*/
     
-    val num = hot_news_evaluation.count()
-    val results = hot_news_evaluation.values.sum()
+ //   val num = hot_news_evaluation.count()
+ //   val results = hot_news_evaluation.values.sum()
+  //  println(results)
+  //  println(num)
+    
+    //compute score of every news according to the user's feature vector and read_time
+    val test_uid_time_no = test_uid_time.map(x => x._2)
+    val scorerdd = test_uid_time_no.join(old_user_representation).cartesian(test_lda_vector).filter{case(x,y)=> x._2._1 > y._2._2} //filter and remain the news which published before the time user reads
+    .map{
+      case( (uid, (r_time, u_vector)), (nid, (n_vector, pub_time))) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
+      => 
+        val content_sim = cosineSimilarity(u_vector, n_vector)
+        val hours_passed = ( r_time.toFloat- pub_time.toFloat) / 3600
+        val day_passed = hours_passed / 24
+        var score = 0.0
+        val norm = 24 * 5
+        var time_diff = norm.toFloat
+       
+        if (day_passed < 5){
+          time_diff = hours_passed / norm
+          score =  content_sim - time_diff
+        }
+         ((uid, r_time), (nid,  score))
+         
+    }.filter{case ((uid, r_time), (nid,  score)) => score > 0}
+    
+//    scorerdd.saveAsTextFile("/home/laura/Documents/Testcosine")
+    
+    val topK = 10
+    //sort to get the recommended news
+    val recommend_news_id = scorerdd.groupByKey().map{ case ((uid, rtime), candidates) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
+      =>
+     ((uid,rtime), candidates.toList.sortWith(_._2 > _._2).take(topK))
+    }
+//    recommend_news_id.saveAsTextFile("/home/laura/Documents/recommend")
+    
+   //evaluate the recommendation according to the labels
+    val recommend_evaluation = recommend_news_id.join(hot_news_recommend).map{
+      case ((uid,rtime), (pred, (label, Some(hot_news)))) => 
+           val pred_ = pred.toList.take(7) ++ hot_news.toList
+           var correct = 0
+            
+            for (pair <- pred_){
+              if(pair._1 == label)
+                correct = 1
+            }
+            ((uid, rtime), correct)
+      case ((uid,rtime), (pred, (label, None)))=>
+        val pred_ = pred.toList
+           var correct = 0
+            
+            for (pair <- pred_){
+              if(pair._1 == label)
+                correct = 1
+            }
+            ((uid, rtime), correct)
+    }
+    val num = recommend_evaluation.count()
+    val results = recommend_evaluation.values.sum()
     println(results)
     println(num)
-    
-//    //compute score of every news according to the user's feature vector and read_time
-//    val scorerdd = test_uid_time.join(old_user_representation).cartesian(test_lda_vector).filter{case(x,y)=> x._2._1 > y._2._2} //filter and remain the news which published before the time user reads
-//    .map{
-//      case( (uid, (r_time, u_vector)), (nid, (n_vector, pub_time))) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
-//      => 
-//        val content_sim = cosineSimilarity(u_vector, n_vector)
-//        val hours_passed = ( r_time.toFloat- pub_time.toFloat) / 3600
-//        val day_passed = hours_passed / 24
-//        var score = 0.0
-//        val norm = 24 * 5
-//        var time_diff = norm.toFloat
-//        
-//        if (day_passed < 5){
-//          time_diff = hours_passed / norm
-//          score =  content_sim - time_diff
-//        }
-//         ((uid, r_time), (nid,  score))
-//         
-//    }.filter{case ((uid, r_time), (nid,  score)) => score > 0}
-//    
-////    scorerdd.saveAsTextFile("/home/laura/Documents/Testcosine")
-//    
-//    val topK = 10
-//    //sort to get the recommended news
-//    val recommend_news_id = scorerdd.groupByKey().map{ case ((uid, rtime), candidates) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
-//      =>
-//      ((uid,rtime), candidates.toList.sortWith(_._2 > _._2).take(topK))
-//    }
-////    recommend_news_id.saveAsTextFile("/home/laura/Documents/recommend")
-//    
-//    //evaluate the recommendation according to the labels
-//    val recommend_evaluation = recommend_news_id.join(test_news_labels).map{case ((uid,rtime), (pred, label))=> 
-//      val pred_ = pred.toArray
-//      var correct = 0
-//      
-//      for (pair <- pred){
-//        if(pair._1 == label)
-//          correct = 1
-//      }
-//      ((uid, rtime), correct)
-//    }
-//    val num = recommend_evaluation.count()
-//    val results = recommend_evaluation.values.sum()
-//    println(results)
-//    println(num)
   }
   
 }
