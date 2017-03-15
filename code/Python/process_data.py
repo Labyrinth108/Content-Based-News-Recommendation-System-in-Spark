@@ -9,9 +9,26 @@ def changeToTimestamp(sep_time):
     timestamp = int(time.mktime(time_struct))
     return timestamp
 
+def get_data_time(filename, sep, names):
+    raw_data = pd.read_table(filename, sep='\t', header=None, names=names).dropna(how='any')
+
+    read_times = raw_data['read_time']
+    sep_time = "2014-03-20 23:59:00" # the time dividing train data and test data
+    timestamp = changeToTimestamp(sep_time)
+
+    before_sep_data = read_times.index[read_times < timestamp]
+    after_sep_data = read_times.index[read_times >= timestamp]
+
+    training_data = raw_data.drop(after_sep_data)
+    testing_data = raw_data.drop(before_sep_data)
+
+    return raw_data, training_data, testing_data
+
+
 def get_data(filename, sep, names):
     raw_data = pd.read_table(filename, sep='\t', header=None, names=names).dropna(how='any')
 
+    user_info = raw_data['user_id']
     read_times = raw_data['read_time']
     sep_time = "2014-03-20 23:59:00" # the time dividing train data and test data
     timestamp = changeToTimestamp(sep_time)
