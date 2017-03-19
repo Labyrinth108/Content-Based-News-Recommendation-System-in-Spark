@@ -30,6 +30,8 @@ object Solution {
   val stopwords_file = dir + "News_Stopwords.txt"
   
   val numTopics = 4
+  val topK = 5
+  val hot_num = 2
   val model_file = dir + s"LDA_Model/LDA_K$numTopics"
   
   def parse_News(corpus_rdd: org.apache.spark.rdd.RDD[ String], sc: SparkContext): org.apache.spark.sql.DataFrame = {
@@ -272,7 +274,7 @@ object Solution {
     //(read_time, Array(nid, num))
     val hot_news_rdd = test_news_rdd.map{x => (getNearDayTimestamp(x._1._3), x._1._2)}.map(x => (x._1, (x._2, 1.0))).groupByKey().map{ case (time, news)
       =>
-        val news_count = news.groupBy(_._1).map{case (x,y) => y.reduce((a,b) =>(a._1, a._2 + b._2))}.toList.sortWith(_._2 > _._2).take(3)
+        val news_count = news.groupBy(_._1).map{case (x,y) => y.reduce((a,b) =>(a._1, a._2 + b._2))}.toList.sortWith(_._2 > _._2).take(hot_num)
         (time, news_count)
     }
    
@@ -327,20 +329,17 @@ object Solution {
          
     }.filter{case ((uid, r_time), (nid,  score)) => score > 0}
     
-//    scorerdd.saveAsTextFile("/home/laura/Documents/Testcosine")
     
-    val topK = 10
     //sort to get the recommended news
     val recommend_news_id = scorerdd.groupByKey().map{ case ((uid, rtime), candidates) // RDD[((String, (String, Vector)), (String, (Vector, String)))]
       =>
      ((uid,rtime), candidates.toList.sortWith(_._2 > _._2).take(topK))
     }
-//    recommend_news_id.saveAsTextFile("/home/laura/Documents/recommend")
     
    //evaluate the recommendation according to the labels
     val recommend_evaluation = recommend_news_id.join(hot_news_recommend).map{
       case ((uid,rtime), (pred, (label, Some(hot_news)))) => 
-           val pred_ = pred.toList.take(7) ++ hot_news.toList
+           val pred_ = pred.toList.take(topK - hot_num) ++ hot_news.toList
            var correct = 0
             
             for (pair <- pred_){

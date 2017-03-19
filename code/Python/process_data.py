@@ -1,6 +1,7 @@
 import pandas as pd
 import time
 import numpy as np
+import random
 from utils import *
 import os
 
@@ -69,6 +70,20 @@ def generateReadingRecord(data, filename):
             print(index)
     file.close()
 
+def constructNegativeInstances(data, filename):
+    news_id_set = data["news_id"].values
+    length = len(news_id_set)
+    read_news_id = data.loc[:,['user_id','news_id', 'read_time']].values
+
+    file = open(filename, "w+")
+    for index in read_news_id:
+        nid_random = news_id_set[random.randint(0,length - 1)]
+
+        while nid_random == index[1]:
+            nid_random = news_id_set[random.randint(0, length - 1)]
+
+        file.write(str(index[0]) + "," + str(nid_random) + "," + str(index[2]) + "\n")
+
 if __name__ == '__main__':
     dir = "/Users/luoyi/Documents/Python/Capstone_Project/Content-Based-News-Recommendation-System-in-Spark"
     filename = dir + '/data/user_click_data.txt'
@@ -76,6 +91,8 @@ if __name__ == '__main__':
     names = ['user_id', 'news_id', 'read_time', 'news_title', 'news_content', 'news_publi_time']
 
     raw_data, training_data, testing_data = get_data(filename, sep, names=names)
+
+    constructNegativeInstances(training_data, dir + "/data/NegativeSamples.txt")
     # calculateNumber(training_data)
     # calculateNumber(testing_data)
 
@@ -109,6 +126,6 @@ if __name__ == '__main__':
 
 
     # parsed news in training and test data
-    stopword_file = dir + "/data/stopwords.txt"
-    generateNewsTable(stopword_file, training_data, dir + "/data/training_data.txt")
-    generateNewsTable(stopword_file, testing_data, dir + "/data/testing_data.txt")
+    # stopword_file = dir + "/data/stopwords.txt"
+    # generateNewsTable(stopword_file, training_data, dir + "/data/training_data.txt")
+    # generateNewsTable(stopword_file, testing_data, dir + "/data/testing_data.txt")

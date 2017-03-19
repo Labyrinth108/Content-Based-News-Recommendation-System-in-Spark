@@ -41,16 +41,12 @@ object TFIDF_News {
     
     val newsrdd = rescaledData.map{case SparseVector(size, indices, values)=> 
      val words = indices.map ( index => bcWords.value.getOrElse(index, "null")) 
-       words.zip(values).sortBy(-_._2).take(10).toSeq
+       words.zip(values).sortWith(_._2>_._2).take(20).toSeq
     }
     
 //    srcrdd_index.zip(newsrdd).saveAsTextFile("/home/laura/Documents/TFIDF/tfidf.txt")
     val news_key_words = srcrdd_index.zip(newsrdd) //(nid,key_words)
     return news_key_words
-  }
-  
-  def JacarrdSimilarity(uwords:List[String], nwords: List[String]): Double = {
-    return uwords.intersect(nwords).length.toDouble/uwords.length.toDouble
   }
   
   
@@ -63,6 +59,7 @@ object TFIDF_News {
     val sourcefile = "/home/laura/Documents/1training_data.txt"
     
     val training_news_key_words = getTFIDF_vector(sourcefile, sc)
+    training_news_key_words.saveAsTextFile("/home/laura/Documents/TFIDF/training_news_keywords")
     
     //===========Load user reading history=========================
     //reading record in the training data: (nid,uid)
@@ -78,7 +75,7 @@ object TFIDF_News {
       }
     
     val user_keyword = user_vector.map{case (uid, words) => 
-        (uid, words.toList.sortBy(-_._2).take(10))
+        (uid, words.toList.sortWith(_._2 > _._2).take(10))
     }
     
 //    user_keyword.saveAsTextFile("/home/laura/Documents/TFIDF/User_keywords")
@@ -88,18 +85,20 @@ object TFIDF_News {
     val old_user_representation = user_keyword.filter { case (uid, representation) => old_user_id_bc.value.contains(uid) }
     
     val old_user_keywords = old_user_representation.map{case (uid, representation) => (uid, representation.map(x=>x._1))}.cache()
-//    old_user_keywords.saveAsTextFile("/home/laura/Documents/TFIDF/user_keywords")
+    old_user_keywords.saveAsTextFile("/home/laura/Documents/TFIDF/user_keywords")
     val test_news_keywords = getTFIDF_vector("/home/laura/Documents/testing_data.txt", sc).map{case(nid, representation) => (nid, representation.map(x=>x._1))}.cache()
+    test_news_keywords.saveAsTextFile("/home/laura/Documents/TFIDF/test_keywords")
     
     //================================Begin Recommend==================================================
+    
     val sim_result = old_user_keywords.cartesian(test_news_keywords).map { 
       case ((uid, uwords), (nid, nwords)) => 
-        val sim = uwords.intersect(nwords).length.toDouble/uwords.length.toDouble
+        val sim = uwords.intersect(nwords).length.toDouble
         (uid, (nid, sim))}     
 //    sim_result.saveAsTextFile("/home/laura/Documents/TFIDF/sim_result")
     
     //(uid, List(nid, n_sim))
-    val topK = 10
+    val topK = 20
     val recommend_news = sim_result.groupByKey().map {
       case (uid, nid_sim) =>
         (uid, nid_sim.toList.sortWith(_._2 > _._2).take(topK).filter(x => x._2 > 0))
@@ -107,7 +106,7 @@ object TFIDF_News {
     
     val recommend_news_flatten = recommend_news.flatMap({case (uid, n_set) => n_set.map(uid-> _._1)})
     val recommend_news_id = recommend_news_flatten.groupByKey()
-//    recommend_news.saveAsTextFile("/home/laura/Documents/TFIDF/result")
+    recommend_news.saveAsTextFile("/home/laura/Documents/TFIDF/result")
     
     //(uid, Iterable[nid])
     val test_news_labels = sc.textFile("/home/laura/Documents/old_user_records.txt").map { x =>
@@ -124,7 +123,7 @@ object TFIDF_News {
       var correct = 0
 //      if(tp >= min_v/2)
       if(tp > 0)
-        correct = 1
+        correct = tp
       (uid, correct)
     }
    
