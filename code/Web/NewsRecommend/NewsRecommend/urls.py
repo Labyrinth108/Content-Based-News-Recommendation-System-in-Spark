@@ -15,12 +15,14 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from app.views import news, login, user_sys, recommend
+from app import views
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url('^main/$', news),
-    url('^login/$', login),
-    url('^user/$', user_sys),
-    url('^recommend/$', recommend),
+    url('^main/$', views.news),
+    url('^login/$', views.login),
+    url('^user/$', views.user_sys),
+    url('^recommend_time/$', views.recommend),
+    url('^logout/$', views.logout),
+    url('^recommend_List/(\d+)/(\d+)$', views.recommend_news),
 ]

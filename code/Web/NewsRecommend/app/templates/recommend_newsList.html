@@ -22,20 +22,6 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<div class="logo">
 				<a href="index.html"><h1>新闻推荐系统</h1></a>
 			</div>
-			<!--<div class="pages">-->
-				<!--<ul>-->
-					<!--<li><a href="index.html">Articles</a></li>-->
-					<!--<li><a class="active" href="3dprinting.html">3D Printers</a></li>-->
-					<!--<li><a href="404.html">Tutorials</a></li>-->
-				<!--</ul>-->
-			<!--</div>-->
-			<!--<div class="navigation">-->
-				<!--<ul>-->
-					<!--<li><a href="contact.html">Advertise</a></li>-->
-					<!--<li><a href="about.html">About Us</a></li>-->
-					<!--<li><a href="contact.html">Contact Us</a></li>-->
-				<!--</ul>-->
-			<!--</div>-->
 			<div class="clearfix"></div>
 		</div>
 	</div>
@@ -48,7 +34,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<div class="list-nav">
 				<ul>
 					<li><a href="/main">新闻</a></li>|
-					<li><a href="#">阅读历史</a></li>|
+					<li><a href="/user">阅读历史</a></li>|
 					<li><a href="/recommend_time">推荐</a></li>|
 					<li><a href="/logout">登出</a></li>
 				</ul>
@@ -66,23 +52,25 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<div class="clearfix"></div>
         </div>
 	</div>
+	<h5  class="head" >Recommended at {{date}}</h5>
 	<div class="container">
-		<div class="content">
-			{% for news in read_list %}
-				<div class="col-md-7 printing-content">
-							<div class="print-main">
-								<a class="bhead" href="single.html">{{news.title}}</a>
-								<p>{{news.pub_date}}</p>
-								<p>{{news.content | linebreaks}}</p>
-							</div>
-							<div class="clearfix"> </div>
+			<div class="content">
+				{% for news in News %}
+					<div class="col-md-7 printing-content">
+								<div class="print-main">
+									<a class="bhead" href="single.html">{{news.title}}</a>
+									<p>{{news.pub_date}}</p>
+									<p>{{news.content | linebreaks}}</p>
+								</div>
+								<div class="clearfix"> </div>
+						</div>
+				{% endfor%}
 					</div>
-			{% endfor%}
-				</div>
 
-			<div class="clearfix"></div>
+				<div class="clearfix"></div>
 
 	</div>
+
 	<div class="footer">
 		<div class="footer-bottom">
 			<div class="container">

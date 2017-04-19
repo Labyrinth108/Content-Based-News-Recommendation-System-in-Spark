@@ -35,4 +35,10 @@ class RecommendSet(models.Model):
     user = models.ForeignKey('Users')
     news = models.ForeignKey('TNews')
     read_time = models.DateTimeField()
+    read_ts = models.IntegerField()
 
+class ClickRecords(models.Model):
+    user = models.ForeignKey('Users')
+    news = models.ForeignKey('TNews')
+    read_time = models.DateTimeField()
+    read_ts = models.IntegerField()

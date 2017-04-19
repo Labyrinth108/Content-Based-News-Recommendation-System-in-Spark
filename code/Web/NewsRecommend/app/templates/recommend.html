@@ -36,6 +36,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					<li><a href="/main">新闻</a></li>|
 					<li><a href="/user">阅读历史</a></li>|
 					<li><a href="#">推荐</a></li>|
+                    <li><a href="/logout">登出</a></li>
 				</ul>
 			</div>
 			<ul>Welcome {{username}}</ul>
@@ -51,23 +52,49 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<div class="clearfix"></div>
         </div>
 	</div>
-	<div class="container">
-		<div class="content">
-			{% for news in recommendSet %}
-				<div class="col-md-7 printing-content">
-							<div class="print-main">
-								<a class="bhead" href="single.html">{{news.title}}</a>
-								<p>{{news.pub_date}}</p>
-								<p>{{news.content | linebreaks}}</p>
-							</div>
-							<div class="clearfix"> </div>
-					</div>
-			{% endfor%}
-				</div>
 
-			<div class="clearfix"></div>
+    <!--<script>-->
+<!--function showRecommendNews()-->
+<!--{-->
+<!--var newsList = {{recommendSet |safe}};-->
+<!--var this_news_List = newsList[1];-->
+<!--document.getElementById("RecommendList").innerHTML=-->
+            <!--" {% for news in this_news_List %}\-->
+				<!--<div class="col-md-5 content-right">\-->
+							<!--<div class="content-right-top">\-->
+								<!--<a class="bhead" href="single.html">{{news.title}}</a>\-->
+								<!--<p>{{news.pub_date}}</p>\-->
+								<!--<p>{{news.content | linebreaks}}</p>\-->
+							<!--</div>\-->
+							<!--<div class="clearfix"> </div>\-->
+				<!--</div> \-->
+			<!--{% endfor%}";-->
+<!--}-->
+<!--</script>-->
+
+
+	<div class="container">
+        <div class="content">
+
+            <div class="col-md-5 content-left">
+			<div class="content-left-top">
+				<h5  class="head">Click Time</h5>
+				{% for clicktime in clicktimes %}
+                    <a  href="/recommend_List/{{username}}/{{clicktime.read_ts}}">
+                    <!--<a href="/recommend_newsList/">-->
+                     <div class="editor text-center">
+
+                            <h3>{{clicktime.read_time}}</h3>
+                            <span></span>
+                        </div>
+                    </a>
+				{% endfor %}
+            </div>
+		</div>
+        </div>
 
 	</div>
+
 	<div class="footer">
 		<div class="footer-bottom">
 			<div class="container">

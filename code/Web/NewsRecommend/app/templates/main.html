@@ -50,7 +50,8 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					<li><a href="#">新闻</a></li>|
                     {% if username != ""%}
                     <li><a href="/user">阅读历史</a></li>|
-					<li><a href="#">推荐</a></li>|
+					<li><a href="recommend_time">推荐</a></li>|
+                    <li><a href="/logout">登出</a></li>
                     {% endif %}
                     {% if username == "" %}
 					<li><a href="/login">登录</a></li>|
@@ -67,7 +68,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			</script>
 
             {% if  username != "" %}
-            <ul>Welcome {{username}}</ul>
+            <a>Welcome {{username}}</a>
             {% endif%}
 			<!-- script for menu -->
 			<div class="clearfix"></div>

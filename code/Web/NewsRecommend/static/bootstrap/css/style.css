@@ -163,12 +163,12 @@ label{
 }
 h5.head {
 	color:#fff;
-	font-size:1.35em;
+	font-size:1.2em;
 	text-transform:uppercase;
 	font-weight:300;
 	font-family: 'Antonio-Regular';
 	background:#1ac7c3;
-	width:20%;
+	width:30%;
 	padding:7px;
 	text-align:center;
 	margin-top: -1px;
@@ -921,7 +921,7 @@ p.span a {
 	}
 	h5.head {
 		font-size: 1.3em;
-		width: 24%;
+		width: 50%;
 	}
 	.article h6 {
 		font-size: 1.25em;

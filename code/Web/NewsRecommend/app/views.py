@@ -5,10 +5,21 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import Context
 from django.contrib import auth
-from models import News, Users, Records, RecommendSet, TNews
-import re
+from models import News, Users, Records, RecommendSet, TNews, ClickRecords
+import re, json
+import simplejson
 from django.template.context import RequestContext
 from forms import LoginForm
+from django.core import serializers
+from django.core.serializers.json import DjangoJSONEncoder
+from json import dumps, loads, JSONEncoder, JSONDecoder
+import pickle
+import sys
+import numpy as np
+import pandas as pd
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 def news(request):
     news = News.objects.all()[:10]
@@ -39,6 +50,13 @@ def login(request):
         uf = LoginForm()
     return render_to_response('login.html', {'uf': uf, 'error': False})
 
+def logout(request):
+    try:
+        del request.session['name']
+    except KeyError:
+        pass
+    return HttpResponseRedirect('/login/')
+
 def user_sys(request):
 
     username = request.session['name']
@@ -48,12 +66,48 @@ def user_sys(request):
         readlist.append(News.objects.get(news_id__exact=r.news_id))
     return render_to_response("user.html", {"read_list": readlist,  "username": username})
 
+class PythonObjectEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (list, dict, str, unicode, int, float, bool, type(None))):
+            return JSONEncoder.default(self, obj)
+        return {'_python_object': pickle.dumps(obj)}
+
+def as_python_object(dct):
+    if '_python_object' in dct:
+        return pickle.loads(str(dct['_python_object']))
+    return dct
+
 def recommend(request):
 
     username = request.session['name']
+    cr = ClickRecords.objects.filter(user_id__exact = username)
+    cr_timestamp_list = []
+    for c in cr:
+        ts = pd.Timestamp(c.read_time).value
+        cr_timestamp_list.append(ts)
+    # recommendnews = []
+    #
+    # for clickrecord in cr:
+    #     time = clickrecord.read_time
+    #     recommend_list_this_time = RecommendSet.objects.filter(user_id__exact=username, read_time__exact = time)
+    #     recommend_newsobject_this_time = []
+    #     for r in recommend_list_this_time:
+    #         recommend_newsobject_this_time.append(TNews.objects.get(news_id__exact = r.news_id))
+    #     recommendnews.append( recommend_newsobject_this_time)
+    #
+    # return render_to_response("recommend.html",
+    #                           {"recommendSet": recommendnews,
+    #                            "username": username, 'clicktimes': cr})
+    return render_to_response("recommend.html",
+                              {"username": username, 'clicktimes': cr, 'clickts': json.dumps(cr_timestamp_list)})
 
-    rs = RecommendSet.objects.filter(user_id__exact = username, read_time__exact= '2014-03-10 04:10:00.000000')
-    recommendnews = []
-    for r in rs:
-        recommendnews.append(TNews.objects.get(news_id__exact = r.news_id))
-    return render_to_response("recommend.html", {"recommendSet": recommendnews, "username": username})
+def recommend_news(request, username, time):
+        username = username
+        clicktime = time
+
+        recommend_list_this_time = RecommendSet.objects.filter(user_id__exact=username, read_ts__exact=clicktime)
+        res = []
+        for r in recommend_list_this_time:
+                res.append(TNews.objects.get(news_id__exact = r.news_id))
+        return render_to_response("recommend_newsList.html",
+                                  {'username':username,'date': recommend_list_this_time.first().read_time, 'News': res})
