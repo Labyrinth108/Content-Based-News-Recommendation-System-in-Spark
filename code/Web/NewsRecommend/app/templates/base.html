@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+<title>新闻推荐系统</title>
+<link href="/static/bootstrap/css/bootstrap.css" rel='stylesheet' type='text/css' />
+<!-- Custom Theme files -->
+<link href="/static/bootstrap/css/style.css" rel="stylesheet" type="text/css" media="all" />
+<!-- Custom Theme files -->
+<script src="/static/bootstrap/js/jquery.min.js"></script>
+<!-- Custom Theme files -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="keywords" content="Konstructs Responsive web template, Bootstrap Web Templates, Flat Web Templates, Andriod Compatible web template,
+Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, SonyErricsson, Motorola web design" />
+<script type="application/x-javascript"> addEventListener("load", function() { setTimeout(hideURLbar, 0); }, false); function hideURLbar(){ window.scrollTo(0,1); } </script>
+</head>
+<body>
+	<!-- header-section-starts -->
+	<div class="header">
+		<div class="container">
+			<div class="logo">
+				<a href="index.html"><h1>新闻推荐系统</h1></a>
+			</div>
+			<div class="clearfix"></div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="header-bottom">
+            {%block header%}
+
+            {% endblock%}
+			<!--<span class="menu"></span>-->
+			<!--<div class="list-nav">-->
+				<!--<ul>-->
+					<!--<li><a href="/main">新闻</a></li>|-->
+					<!--<li><a href="/user">阅读历史</a></li>|-->
+					<!--<li><a class="active" href="#">推荐</a></li>|-->
+                    <!--<li><a href="/logout">登出</a></li>-->
+				<!--</ul>-->
+			<!--</div>-->
+			<!--<ul>Welcome {{username}}</ul>-->
+			<!--&lt;!&ndash; script for menu &ndash;&gt;-->
+				<!--<script>-->
+				<!--$( "span.menu" ).click(function() {-->
+				  <!--$( ".list-nav" ).slideToggle( "slow", function() {-->
+				    <!--// Animation complete.-->
+				  <!--});-->
+				<!--});-->
+			<!--</script>-->
+			<!--&lt;!&ndash; script for menu &ndash;&gt;-->
+			<!--<div class="clearfix"></div>-->
+        </div>
+	</div>
+
+	<div class="container">
+        {% block content %}
+
+        {% endblock %}
+
+	</div>
+
+	<div class="footer">
+		<div class="footer-bottom">
+			<div class="container">
+				<div class="copyrights">
+					<p>Copyright &copy; 2015.Company name All rights reserved.<a target="_blank" href="http://www.cssmoban.com/">&#x7F51;&#x9875;&#x6A21;&#x677F;</a> - More Templates <a href="http://www.cssmoban.com/" target="_blank" title="模板之家">模板之家</a></p>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

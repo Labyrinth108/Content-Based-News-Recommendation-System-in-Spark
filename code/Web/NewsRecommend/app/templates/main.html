@@ -1,56 +1,13 @@
-<!DOCTYPE html>
-{% load static %}
-<html>
-<head>
-<title>新闻推荐系统</title>
-<link href="/static/bootstrap/css/bootstrap.css" rel='stylesheet' type='text/css' />
-<!-- Custom Theme files -->
-<link href="/static/bootstrap/css/style.css" rel="stylesheet" type="text/css" media="all" />
-<!-- Custom Theme files -->
-<script src="/static/bootstrap/js/jquery.min.js"></script>
-<!-- Custom Theme files -->
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="keywords" content="Konstructs Responsive web template, Bootstrap Web Templates, Flat Web Templates, Andriod Compatible web template, 
-Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, SonyErricsson, Motorola web design" />
-<script type="application/x-javascript"> addEventListener("load", function() { setTimeout(hideURLbar, 0); }, false); function hideURLbar(){ window.scrollTo(0,1); } </script>
-</head>
-<body>
-	<!-- header-section-starts -->
-	<div class="header">
-		<div class="container">
-			<div class="logo">
-				<a href="index.html"><h1>新闻推荐系统</h1></a>
-			</div>
-			<!--<div class="pages">-->
-				<!--<ul>-->
-					<!--<li><a href="index.html">Articles</a></li>-->
-					<!--<li><a class="active" href="3dprinting.html">3D Printers</a></li>-->
-					<!--<li><a href="404.html">Tutorials</a></li>-->
-				<!--</ul>-->
-			<!--</div>-->
-			<!--<div class="navigation">-->
-				<!--<ul>-->
-					<!--<li><a href="contact.html">Advertise</a></li>-->
-					<!--<li><a href="about.html">About Us</a></li>-->
-					<!--<li><a href="contact.html">Contact Us</a></li>-->
-				<!--</ul>-->
-			<!--</div>-->
-			<div class="clearfix"></div>
-		</div>
-	</div>
-	<div class="container">
-		<div class="header-bottom">
-            <div class="type">
-				<h5>新闻概览</h5>
-			</div>
+{% extends "base.html" %}
+
+{%block header%}
 			<span class="menu"></span>
 			<div class="list-nav">
-				<ul>                                                                 
-					<li><a href="#">新闻</a></li>|
+				<ul>
+					<li><a class="active" href="#">新闻</a></li>|
                     {% if username != ""%}
                     <li><a href="/user">阅读历史</a></li>|
-					<li><a href="recommend_time">推荐</a></li>|
+					<li><a href="/recommend_time">推荐</a></li>|
                     <li><a href="/logout">登出</a></li>
                     {% endif %}
                     {% if username == "" %}
@@ -72,42 +29,21 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
             {% endif%}
 			<!-- script for menu -->
 			<div class="clearfix"></div>
-        </div>
-	</div>
-	<div class="container">
-		<div class="content">
+{% endblock %}
+{% block content %}
+
+<div class="content">
 			{% for news in news_list %}
 				<div class="col-md-7 printing-content">
 							<div class="print-main">
-								<a class="bhead" href="single.html">{{news.title}}</a>
+								<a class="bhead">{{news.title}}</a>
 								<p>{{news.pub_date}}</p>
 								<p>{{news.content | linebreaks}}</p>
-								<!--<script>-->
-								<!--function changetoPara(){-->
-									<!--var s = {{news.content}}.split("	 ");-->
-									<!--for(i in s){-->
-								<!--<p> i </p>>-->
-									<!--}-->
-								<!--}-->
-								<!--</script>-->
-								<!--<a class="more" href="single.html">...Read More</a>-->
+
 							</div>
 							<div class="clearfix"> </div>
 					</div>
 			{% endfor%}
-				</div>
+</div>
 
-			<div class="clearfix"></div>
-
-	</div>
-	<div class="footer">
-		<div class="footer-bottom">
-			<div class="container">
-				<div class="copyrights">
-					<p>Copyright &copy; 2015.Company name All rights reserved.<a target="_blank" href="http://www.cssmoban.com/">&#x7F51;&#x9875;&#x6A21;&#x677F;</a> - More Templates <a href="http://www.cssmoban.com/" target="_blank" title="模板之家">模板之家</a></p>
-				</div>
-			</div>
-		</div>
-	</div>
-</body>
-</html>
+{% endblock%}

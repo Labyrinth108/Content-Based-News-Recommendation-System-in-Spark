@@ -22,10 +22,10 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 def news(request):
-    news = News.objects.all()[:10]
+    news = list(News.objects.all()[:5])
     for n in news:
-        n.content = n.content.replace('&nbsp', '<br>')
-
+        n.content = n.content.replace('?', '')
+        n.content = n.content.replace('　　', '\n　　')
     if 'name' in request.session:
         username = request.session['name']
     else:
@@ -48,7 +48,7 @@ def login(request):
             return HttpResponseRedirect('/user/')
     else:
         uf = LoginForm()
-    return render_to_response('login.html', {'uf': uf, 'error': False})
+    return render_to_response('login.html', {'uf': uf, 'error': False, 'username':""})
 
 def logout(request):
     try:
@@ -63,19 +63,12 @@ def user_sys(request):
     records = Records.objects.filter(user_id__exact=username)
     readlist = []
     for r in records:
-        readlist.append(News.objects.get(news_id__exact=r.news_id))
+        news = News.objects.get(news_id__exact=r.news_id)
+        news.content = news.content.replace('?', '')
+        news.content = news.content.replace('　　', '\n　　')
+
+        readlist.append(news)
     return render_to_response("user.html", {"read_list": readlist,  "username": username})
-
-class PythonObjectEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (list, dict, str, unicode, int, float, bool, type(None))):
-            return JSONEncoder.default(self, obj)
-        return {'_python_object': pickle.dumps(obj)}
-
-def as_python_object(dct):
-    if '_python_object' in dct:
-        return pickle.loads(str(dct['_python_object']))
-    return dct
 
 def recommend(request):
 
@@ -108,6 +101,9 @@ def recommend_news(request, username, time):
         recommend_list_this_time = RecommendSet.objects.filter(user_id__exact=username, read_ts__exact=clicktime)
         res = []
         for r in recommend_list_this_time:
-                res.append(TNews.objects.get(news_id__exact = r.news_id))
+            news = TNews.objects.get(news_id__exact = r.news_id)
+            news.content = news.content.replace('?', '')
+            news.content = news.content.replace('　　', '\n　　')
+            res.append(news)
         return render_to_response("recommend_newsList.html",
                                   {'username':username,'date': recommend_list_this_time.first().read_time, 'News': res})
