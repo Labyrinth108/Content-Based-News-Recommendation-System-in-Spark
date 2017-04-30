@@ -19,9 +19,15 @@ import org.apache.spark.ml.feature.StopWordsRemover
 import org.apache.log4j.{ Level, Logger }
 
 object LDA_Part {
-  val dir = "/home/laura/Documents/"
-  val news_training_file = dir + "data/training_data.txt"
   
+  val numTopics = 6
+  val dir = "/home/laura/Documents/"
+  
+  val news_training_file =dir + "data/training_data.txt"
+  val model_file =  dir + s"data/TestK/LDA_K$numTopics"
+  val stopwords_file = dir + "News_Stopwords.txt"
+  
+  //Parse news from text to vector and remove stopwords
   def parse_News(srcRDD: org.apache.spark.rdd.RDD[(String, String)], sc: SparkContext): org.apache.spark.sql.DataFrame = {
 
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
@@ -34,7 +40,7 @@ object LDA_Part {
     var tokenizer = new Tokenizer().setInputCol("corpus").setOutputCol("words")
     var wordsData = tokenizer.transform(corpus_df)
 
-    val stopwords = sc.textFile("/home/laura/Documents/News_Stopwords.txt").collect()
+    val stopwords = sc.textFile(stopwords_file).collect()
     val remover = new StopWordsRemover().setStopWords(stopwords).setInputCol("words").setOutputCol("filtered")
     val filtered_df = remover.transform(wordsData)
 
@@ -66,10 +72,8 @@ object LDA_Part {
     //    if (computeLDAModel) {
 
     //LDA begins
-    val numTopics = 6
-
     val lda = new LDA().setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
-      .setK(numTopics).setMaxIterations(60).setDocConcentration(-1).setTopicConcentration(-1)
+      .setK(numTopics).setMaxIterations(200).setDocConcentration(-1).setTopicConcentration(-1)
 
     val ldaModel = lda.run(lda_countvector)
 
@@ -95,7 +99,7 @@ object LDA_Part {
         println(s"=====================")
     }
 
-//    ldaModel.save(sc, s"/file:///home/laura/Documents/LDA_Model/LDA_K$numTopics")
+    ldaModel.save(sc, model_file)
     //    }
 
     //    val localmodel = LocalLDAModel.load(sc, "file:///home/laura/Documents/LDA_Model/LDA_K8")
@@ -121,7 +125,7 @@ object LDA_Part {
     val sc = new SparkContext(conf)
 
     //nid_representation : (nid, topic representation of news)
-    val nid_representation = LDA_stuff("/home/laura/Documents/training_data_p0.txt", sc)
-    nid_representation.saveAsTextFile("/home/laura/Documents/Test/nid_representation")
+   val nid_representation = LDA_stuff(news_training_file, sc)
+   //nid_representation.saveAsTextFile("/home/laura/Documents/Test/nid_representation")
   }
 }
