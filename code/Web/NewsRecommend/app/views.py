@@ -1,36 +1,76 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud, STOPWORDS
+import jieba, os
+import pandas as pd
 from django.shortcuts import render
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import Context
 from django.contrib import auth
-from models import News, Users, Records, RecommendSet, TNews, ClickRecords
-import re, json
+from models import News, Users, Records, RecommendSet, TNews, ClickRecords, CaixinNews, UserRecords
+import re, json, datetime
 import simplejson
 from django.template.context import RequestContext
 from forms import LoginForm
 from django.core import serializers
 from django.core.serializers.json import DjangoJSONEncoder
 from json import dumps, loads, JSONEncoder, JSONDecoder
-import pickle
 import sys
 import numpy as np
-import pandas as pd
 
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 def news(request):
-    news = list(News.objects.all()[:5])
+    date = datetime.date.today()
+    news = list(CaixinNews.objects.filter(pub_date__range=(datetime.datetime.combine(date, datetime.time.min),
+                            datetime.datetime.combine(date, datetime.time.max))))
+
     for n in news:
         n.content = n.content.replace('?', '')
         n.content = n.content.replace('　　', '\n　　')
+
+        # wordlist_after_jieba = jieba.cut(n.content, cut_all=True)
+        # wl_space_split = " ".join(wordlist_after_jieba)
+        #
+        # font = "/Users/luoyi/Downloads/msyh.ttf"
+        #
+        # my_wordcloud = WordCloud(font_path=font, background_color='white',
+        #                          stopwords=STOPWORDS.copy(), margin=10,
+        #                          random_state=1).generate(wl_space_split)
+        #
+        # plt.imshow(my_wordcloud)
+        # plt.axis("off")
+        # plt.savefig("/Users/luoyi/Documents/Python/Capstone_Project/"
+        #             "Content-Based-News-Recommendation-System-in-Spark/code/Web/NewsRecommend/media/" + n.news_id + ".png"
+        #             , bbox_inches='tight')
+
     if 'name' in request.session:
         username = request.session['name']
     else:
         username = ""
+
     return render_to_response('main.html', {"news_list": news, 'username': username})
+
+def click_data_collect(request, news_id):
+
+    username = request.session["name"]
+    time = datetime.datetime.today()
+    news_url = CaixinNews.objects.get(news_id__exact=news_id).url
+    x = np.int64(pd.Timestamp(time).value)/1000000000
+
+    # 外键的字段需要这样子初始化
+    user_o = Users.objects.get(user_id__exact=username)
+    news_o = CaixinNews.objects.get(news_id__exact=news_id)
+
+    # 存入数据库
+    r = UserRecords(user=user_o, news=news_o, read_time=time, read_ts=x)
+    r.save()
+
+    # 跳转到财新网该新闻页面
+    return HttpResponseRedirect(news_url)
 
 def login(request):
     if request.method == 'POST':
@@ -60,7 +100,7 @@ def logout(request):
 def user_sys(request):
 
     username = request.session['name']
-    records = Records.objects.filter(user_id__exact=username)
+    records = Records.objects.filter(user_id__exact=username).order_by('read_time')
     readlist = []
     for r in records:
         news = News.objects.get(news_id__exact=r.news_id)
@@ -68,16 +108,19 @@ def user_sys(request):
         news.content = news.content.replace('　　', '\n　　')
 
         readlist.append(news)
-    return render_to_response("user.html", {"read_list": readlist,  "username": username})
+    readlist = zip(readlist, records)
+    return render_to_response("user.html", {"read_list": readlist, "username": username})
 
 def recommend(request):
 
     username = request.session['name']
-    cr = ClickRecords.objects.filter(user_id__exact = username)
+    cr = ClickRecords.objects.filter(user_id__exact = username).order_by('read_time')
+
     cr_timestamp_list = []
     for c in cr:
         ts = pd.Timestamp(c.read_time).value
         cr_timestamp_list.append(ts)
+
     # recommendnews = []
     #
     # for clickrecord in cr:
@@ -105,5 +148,6 @@ def recommend_news(request, username, time):
             news.content = news.content.replace('?', '')
             news.content = news.content.replace('　　', '\n　　')
             res.append(news)
+        res = sorted(res, key=lambda x:x.pub_date)
         return render_to_response("recommend_newsList.html",
                                   {'username':username,'date': recommend_list_this_time.first().read_time, 'News': res})

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-
+{% load staticfiles %}
+{% load static %}
 {%block header%}
 			<span class="menu"></span>
 			<div class="list-nav">
@@ -32,18 +33,25 @@
 {% endblock %}
 {% block content %}
 
-<div class="content">
-			{% for news in news_list %}
-				<div class="col-md-7 printing-content">
-							<div class="print-main">
-								<a class="bhead">{{news.title}}</a>
-								<p>{{news.pub_date}}</p>
-								<p>{{news.content | linebreaks}}</p>
+<div class="editors-pic-grids">
+					<h5>Caixin News</h5>
+	{% for news in news_list %}
+					<div class="editors-pic">
 
-							</div>
-							<div class="clearfix"> </div>
+						<div class="e-pic">
+							<a href={{news.img_href}}><img src={{news.img_href}} alt="" /></a>
+						</div>
+						<div class="e-pic-info">
+							<a href="/news/{{news.news_id}}">{{news.title}}</a>
+							<!--<a href={{news.url}}>{{news.title}}</a>-->
+							<span></span>
+							<label>{{news.pub_date}}</label>
+							<h6>{{news.topic}}</h6>
+							<p>{{news.content | linebreaks|slice:":255"}}</p>
+						</div>
+						<div class="clearfix"></div>
 					</div>
-			{% endfor%}
+	{% endfor%}
 </div>
 
 {% endblock%}

@@ -27,11 +27,12 @@
 {% block content %}
 
 <div class="content">
-			{% for news in read_list %}
-				<div class="col-md-7 printing-content">
+			{% for news, record in read_list%}
+				<div class="printing-content">
 							<div class="print-main">
 								<a class="bhead" href="single.html">{{news.title}}</a>
-								<p>{{news.pub_date}}</p>
+								<p>published {{news.pub_date}}</p>
+								<p>read at {{record.read_time}}</p>
 								<p>{{news.content | linebreaks}}</p>
 							</div>
 							<div class="clearfix"> </div>

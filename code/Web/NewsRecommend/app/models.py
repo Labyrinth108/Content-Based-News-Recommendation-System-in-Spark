@@ -23,6 +23,17 @@ class Records(models.Model):
     user = models.ForeignKey('Users')
     read_time = models.DateTimeField()
 
+class CaixinNews(models.Model):
+    news_id = models.CharField(primary_key=True, max_length=20)
+    title = models.CharField(max_length=200)
+    pub_date = models.DateTimeField()
+    content = models.TextField()
+    topic = models.CharField(max_length=200)
+    img_href = models.CharField(max_length=200)
+    url = models.CharField(max_length=200)
+    def __str__(self):
+        return str(self.news_id) + " " + self.title + " " + self.pub_date.strftime('%Y-%m-%d') + self.topic + self.img_href + self.url
+
 class TNews(models.Model):
     news_id = models.CharField(primary_key=True, max_length=20)
     title = models.CharField(max_length=200)
@@ -40,5 +51,11 @@ class RecommendSet(models.Model):
 class ClickRecords(models.Model):
     user = models.ForeignKey('Users')
     news = models.ForeignKey('TNews')
+    read_time = models.DateTimeField()
+    read_ts = models.IntegerField()
+
+class UserRecords(models.Model):
+    user = models.ForeignKey('Users')
+    news = models.ForeignKey('CaixinNews')
     read_time = models.DateTimeField()
     read_ts = models.IntegerField()
