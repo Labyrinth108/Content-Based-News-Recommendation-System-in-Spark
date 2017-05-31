@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block header%}
+
+			<span class="menu"></span>
+			<div class="list-nav">
+				<ul>
+					<li><a href="/main">新闻</a></li>|
+					<li><a href="/user">阅读历史</a></li>|
+					<li><a href="/recommend_time">离线推荐</a></li>|
+					<li><a href="/online_recommend/{{username}}" class="active" >实时推荐</a></li>|
+					<li><a href="/logout">登出</a></li>
+				</ul>
+			</div>
+			<ul>Welcome {{username}}</ul>
+			<!-- script for menu -->
+				<script>
+				$( "span.menu" ).click(function() {
+				  $( ".list-nav" ).slideToggle( "slow", function() {
+				    // Animation complete.
+				  });
+				});
+			</script>
+			<!-- script for menu -->
+			<div class="clearfix"></div>
+
+{% endblock%}
+{% block content %}
+
+<div class="editors-pic-grids">
+					<h5>Online Recommended Caixin News</h5>
+	{% for news in result %}
+					<div class="editors-pic">
+
+						<div class="e-pic">
+							<a href={{news.img_href}}><img src={{news.img_href}} alt="" /></a>
+						</div>
+						<div class="e-pic-info">
+							<a href="/news/{{news.news_id}}">{{news.title}}</a>
+							<!--<a href={{news.url}}>{{news.title}}</a>-->
+							<span></span>
+							<label>{{news.pub_date}}</label>
+							<h6>{{news.topic}}</h6>
+							<p>{{news.content | linebreaks|slice:":255"}}</p>
+						</div>
+						<div class="clearfix"></div>
+					</div>
+	{% endfor%}
+</div>
+{% endblock %}

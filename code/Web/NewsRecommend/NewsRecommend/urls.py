@@ -27,7 +27,8 @@ urlpatterns = [
     url('^recommend_time/$', views.recommend),
     url('^logout/$', views.logout),
     url('^recommend_List/(\d+)/(\d+)$', views.recommend_news),
-    url('^news/(\d+)$', views.click_data_collect)
+    url('^news/(\d+)$', views.click_data_collect),
+    url('^online_recommend/(\d+)$', views.online_result),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

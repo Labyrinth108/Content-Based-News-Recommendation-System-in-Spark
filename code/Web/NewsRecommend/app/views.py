@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
-import jieba, os
 import pandas as pd
 from django.shortcuts import render
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -10,8 +9,7 @@ from django.shortcuts import render_to_response
 from django.template import Context
 from django.contrib import auth
 from models import News, Users, Records, RecommendSet, TNews, ClickRecords, CaixinNews, UserRecords
-import re, json, datetime
-import simplejson
+import re, json, datetime, urllib
 from django.template.context import RequestContext
 from forms import LoginForm
 from django.core import serializers
@@ -24,7 +22,8 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 def news(request):
-    date = datetime.date.today()
+    date = datetime.datetime(2017, 5, 24)
+    # date = datetime.date.today()
     news = list(CaixinNews.objects.filter(pub_date__range=(datetime.datetime.combine(date, datetime.time.min),
                             datetime.datetime.combine(date, datetime.time.max))))
 
@@ -54,9 +53,17 @@ def news(request):
 
     return render_to_response('main.html', {"news_list": news, 'username': username})
 
+def online_result(request, userid):
+    response = urllib.urlopen("http://0.0.0.0:5432/" + userid)
+    username = request.session["name"]
+    data = json.loads(response.read())
+    recommend_news = CaixinNews.objects.filter(news_id__in = data)
+    return render_to_response('online_recommend.html', {'result': recommend_news, 'username': username})
+
 def click_data_collect(request, news_id):
 
     username = request.session["name"]
+    # time = datetime.datetime(2017, 5, 24)
     time = datetime.datetime.today()
     news_url = CaixinNews.objects.get(news_id__exact=news_id).url
     x = np.int64(pd.Timestamp(time).value)/1000000000
@@ -151,3 +158,4 @@ def recommend_news(request, username, time):
         res = sorted(res, key=lambda x:x.pub_date)
         return render_to_response("recommend_newsList.html",
                                   {'username':username,'date': recommend_list_this_time.first().read_time, 'News': res})
+        # return render_to_response("online_recommend/" + username)
